@@ -3,7 +3,9 @@ const mongoose = require("mongoose");
 mongoose.connect("mongodb://admin:danil1001@ac-f5rjgfe-shard-00-00.dogatub.mongodb.net:27017,ac-f5rjgfe-shard-00-01.dogatub.mongodb.net:27017,ac-f5rjgfe-shard-00-02.dogatub.mongodb.net:27017/?ssl=true&replicaSet=atlas-cb666r-shard-0&authSource=admin&appName=Cluster0");
 
 console.log("Database connected");
+const PORT = process.env.PORT || 3000;
 
+});
 const Video = mongoose.model("Video", {
   filename: String,
   likes: Number,
@@ -115,6 +117,8 @@ io.on("connection", (socket) => {
   });
 
 });
-http.listen(3000, () => {
-  console.log("Server jalan di http://localhost:3000");
+const PORT = process.env.PORT || 3000;
+
+http.listen(PORT, () => {
+  console.log("Server jalan di port " + PORT);
 });

@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<body>
+
+<h2>Chat App</h2>
+
+<!-- tampil chat -->
+<div id="chat"></div>
+
+<!-- input tujuan -->
+<input id="to" placeholder="Kirim ke siapa (nama)"><br><br>
+
+<!-- input pesan -->
+<input id="msg" placeholder="Tulis pesan...">
+<button onclick="send()">Kirim</button>
+
+<script src="/socket.io/socket.io.js"></script>
+
+<script>
+  const socket = io();
+
+  const username = localStorage.getItem("username");
+
+  // kirim login ke server
+  socket.emit("login", username);
+
+  function send(){
+    let msg = document.getElementById("msg").value;
+    let to = document.getElementById("to").value;
+
+    socket.emit("private_chat", {
+      from: username,
+      to: to,
+      message: msg
+    });
+  }
+
+  // terima pesan
+  socket.on("private_chat", (data) => {
+    document.getElementById("chat").innerHTML += 
+      "<p><b>" + data.from + ":</b> " + data.message + "</p>";
+  });
+</script>
+
+</body>
+</html>

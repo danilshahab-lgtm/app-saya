@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<body>
+
+<h2>Feed Video</h2>
+
+<div id="feed"></div>
+
+<script src="/socket.io/socket.io.js"></script>
+
+<script>
+const socket = io();
+
+fetch("/videos")
+  .then(res => res.json())
+  .then(data => {
+    let feed = document.getElementById("feed");
+
+    data.forEach(v => {
+      feed.innerHTML += `
+        <div id="${v.filename}">
+          <video width="300" controls>
+            <source src="/uploads/${v.filename}" type="video/mp4">
+          </video><br>
+
+          <button onclick="like('${v.filename}')">❤️ Like</button>
+          <span id="likes-${v.filename}">${v.likes}</span> like
+
+          <br><br>
+
+          <input id="comment-${v.filename}" placeholder="Komentar...">
+          <button onclick="comment('${v.filename}')">Kirim</button>
+
+          <div id="comments-${v.filename}">
+            ${v.comments.map(c => "<p>"+c+"</p>").join("")}
+          </div>
+
+          <hr>
+        </div>
+      `;
+    });
+  });
+
+// LIKE
+function like(video){
+  socket.emit("like", video);
+}
+
+// KOMENTAR
+function comment(video){
+  let text = document.getElementById("comment-" + video).value;
+
+  socket.emit("comment", {
+    video: video,
+    text: text
+  });
+}
+
+// UPDATE REALTIME
+socket.on("update", (res) => {
+  document.getElementById("likes-" + res.video).innerText = res.data.likes;
+
+  let comments = document.getElementById("comments-" + res.video);
+  comments.innerHTML = "";
+
+  res.data.comments.forEach(c => {
+    comments.innerHTML += "<p>" + c + "</p>";
+  });
+});
+</script>
+
+</body>
+</html>

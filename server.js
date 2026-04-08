@@ -35,6 +35,23 @@ const Video = mongoose.model("Video", {
   comments: [String]
 });
 
+// ================== AUTH MIDDLEWARE ==================
+function auth(req, res, next){
+  const token = req.headers.authorization;
+
+  if(!token){
+    return res.redirect("/login");
+  }
+
+  try{
+    const data = jwt.verify(token, "secret123");
+    req.user = data;
+    next();
+  }catch{
+    res.redirect("/login");
+  }
+}
+
 // ================== MULTER ==================
 const storage = multer.diskStorage({
   destination: "uploads/",
@@ -47,20 +64,21 @@ const upload = multer({ storage });
 
 // ================== ROUTES ==================
 
-// halaman
-app.get("/", (req, res) => {
-  res.sendFile(__dirname + "/index.html");
-});
-
+// LOGIN PAGE (PUBLIC)
 app.get("/login", (req, res) => {
   res.sendFile(__dirname + "/login.html");
 });
 
-app.get("/upload", (req, res) => {
+// PROTECTED PAGE
+app.get("/", auth, (req, res) => {
+  res.sendFile(__dirname + "/index.html");
+});
+
+app.get("/upload", auth, (req, res) => {
   res.sendFile(__dirname + "/upload.html");
 });
 
-app.get("/feed", (req, res) => {
+app.get("/feed", auth, (req, res) => {
   res.sendFile(__dirname + "/feed.html");
 });
 
@@ -99,7 +117,7 @@ app.post("/login", async (req, res) => {
 
 // ================== VIDEO ==================
 
-app.post("/upload", upload.single("video"), async (req, res) => {
+app.post("/upload", auth, upload.single("video"), async (req, res) => {
   await Video.create({
     filename: req.file.filename,
     likes: 0,
@@ -122,12 +140,10 @@ let videoData = {};
 io.on("connection", (socket) => {
   console.log("User connect");
 
-  // LOGIN SOCKET
   socket.on("login", (username) => {
     users[username] = socket.id;
   });
 
-  // CHAT PRIVATE
   socket.on("private_chat", (data) => {
     let target = users[data.to];
 
@@ -136,7 +152,6 @@ io.on("connection", (socket) => {
     }
   });
 
-  // LIKE
   socket.on("like", (video) => {
     if (!videoData[video]) {
       videoData[video] = { likes: 0, comments: [] };
@@ -150,7 +165,6 @@ io.on("connection", (socket) => {
     });
   });
 
-  // KOMENTAR
   socket.on("comment", (data) => {
     if (!videoData[data.video]) {
       videoData[data.video] = { likes: 0, comments: [] };
@@ -163,7 +177,6 @@ io.on("connection", (socket) => {
       data: videoData[data.video]
     });
   });
-
 });
 
 // ================== PORT ==================

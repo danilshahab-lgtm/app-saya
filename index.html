@@ -40,6 +40,9 @@
     document.getElementById("chat").innerHTML += 
       "<p><b>" + data.from + ":</b> " + data.message + "</p>";
   });
+  if(!localStorage.getItem("token")){
+  window.location.href = "/login";
+}
 </script>
 
 </body>

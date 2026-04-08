@@ -1,22 +1,29 @@
+// ================== IMPORT ==================
+const express = require("express");
+const http = require("http");
+const socketIo = require("socket.io");
 const mongoose = require("mongoose");
+const multer = require("multer");
+const path = require("path");
 
-mongoose.connect("mongodb://admin:danil1001@ac-f5rjgfe-shard-00-00.dogatub.mongodb.net:27017,ac-f5rjgfe-shard-00-01.dogatub.mongodb.net:27017,ac-f5rjgfe-shard-00-02.dogatub.mongodb.net:27017/?ssl=true&replicaSet=atlas-cb666r-shard-0&authSource=admin&appName=Cluster0");
+// ================== INIT ==================
+const app = express();
+const server = http.createServer(app);
+const io = socketIo(server);
+
+// ================== DATABASE ==================
+mongoose.connect("mongodb://admin:danil1001@ac-f5rjgfe-shard-00-00.dogatub.mongodb.net:27017,ac-f5rjgfe-shard-00-01.dogatub.mongodb.net:27017,ac-f5rjgfe-shard-00-02.dogatub.mongodb.net:27017/app?ssl=true&replicaSet=atlas-cb666r-shard-0&authSource=admin&retryWrites=true&w=majority");
 
 console.log("Database connected");
-const PORT = process.env.PORT || 3000;
 
-});
+// ================== MODEL ==================
 const Video = mongoose.model("Video", {
   filename: String,
   likes: Number,
   comments: [String]
 });
 
-let videoData = {};
-const fs = require("fs");
-const multer = require("multer");
-const path = require("path");
-
+// ================== MULTER (UPLOAD) ==================
 const storage = multer.diskStorage({
   destination: "uploads/",
   filename: (req, file, cb) => {
@@ -25,24 +32,31 @@ const storage = multer.diskStorage({
 });
 
 const upload = multer({ storage });
-const express = require("express");
-const { Server } = require("engine.io");
-const app = express();
-const http = require("http").createServer(app);
-const io = require("socket.io")(http);
 
-// halaman utama
+// ================== STATIC ==================
+app.use("/uploads", express.static("uploads"));
+
+// ================== ROUTES ==================
+
+// halaman
 app.get("/", (req, res) => {
   res.sendFile(__dirname + "/index.html");
 });
 
-// 🔥 TAMBAHKAN INI
 app.get("/login", (req, res) => {
   res.sendFile(__dirname + "/login.html");
 });
 
-app.post("/upload", upload.single("video"), async (req, res) => {
+app.get("/upload", (req, res) => {
+  res.sendFile(__dirname + "/upload.html");
+});
 
+app.get("/feed", (req, res) => {
+  res.sendFile(__dirname + "/feed.html");
+});
+
+// upload video
+app.post("/upload", upload.single("video"), async (req, res) => {
   await Video.create({
     filename: req.file.filename,
     likes: 0,
@@ -51,30 +65,27 @@ app.post("/upload", upload.single("video"), async (req, res) => {
 
   res.send("Upload berhasil");
 });
-app.use("/uploads", express.static("uploads"));
-// chat realtime
-let users = {};
-app.get("/upload", (req, res) => {
-  res.sendFile(__dirname + "/upload.html");
-});
+
+// ambil video dari DB
 app.get("/videos", async (req, res) => {
   const videos = await Video.find();
   res.json(videos);
 });
-app.get("/feed", (req, res) => {
-  res.sendFile(__dirname + "/feed.html");
-});
+
+// ================== SOCKET ==================
+let users = {};
+let videoData = {};
 
 io.on("connection", (socket) => {
   console.log("User connect");
 
-  // simpan user
+  // LOGIN
   socket.on("login", (username) => {
     users[username] = socket.id;
     console.log(username + " login");
   });
 
-  // kirim chat private
+  // CHAT PRIVATE
   socket.on("private_chat", (data) => {
     let target = users[data.to];
 
@@ -86,10 +97,7 @@ io.on("connection", (socket) => {
     }
   });
 
-});
-
-io.on("connection", (socket) => {
-
+  // LIKE
   socket.on("like", (video) => {
     if (!videoData[video]) {
       videoData[video] = { likes: 0, comments: [] };
@@ -103,6 +111,7 @@ io.on("connection", (socket) => {
     });
   });
 
+  // KOMENTAR
   socket.on("comment", (data) => {
     if (!videoData[data.video]) {
       videoData[data.video] = { likes: 0, comments: [] };
@@ -117,8 +126,10 @@ io.on("connection", (socket) => {
   });
 
 });
+
+// ================== PORT ==================
 const PORT = process.env.PORT || 3000;
 
-http.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log("Server jalan di port " + PORT);
 });

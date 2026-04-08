@@ -80,8 +80,24 @@ app.get("/profile-page", auth, (req, res) => {
   res.sendFile(__dirname + "/profile.html");
 });
 // LOGIN PAGE (PUBLIC)
-app.get("/login", (req, res) => {
-  res.sendFile(__dirname + "/login.html");
+app.post("/login", async (req, res) => {
+  const { username, password } = req.body;
+
+  const user = await User.findOne({ username });
+
+  if (!user) {
+    return res.json({ success: false, message: "User tidak ditemukan" });
+  }
+
+  const valid = await bcrypt.compare(password, user.password);
+
+  if (!valid) {
+    return res.json({ success: false, message: "Password salah" });
+  }
+
+  const token = jwt.sign({ username }, "secret123");
+
+  res.json({ success: true, token });
 });
 
 // PROTECTED PAGE

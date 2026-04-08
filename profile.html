@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<body>
+
+<h2>Profile User</h2>
+
+<img id="avatar" width="150"><br><br>
+<h3 id="username"></h3>
+
+<input type="file" id="file"><br><br>
+<button onclick="upload()">Upload Foto</button>
+
+<script>
+async function loadProfile(){
+  let res = await fetch("/profile", {
+    headers: {
+      "Authorization": localStorage.getItem("token")
+    }
+  });
+
+  let user = await res.json();
+
+  document.getElementById("username").innerText = user.username;
+
+  if(user.avatar){
+    document.getElementById("avatar").src = "/uploads/" + user.avatar;
+  }
+}
+
+async function upload(){
+  let file = document.getElementById("file").files[0];
+
+  let formData = new FormData();
+  formData.append("avatar", file);
+
+  await fetch("/upload-avatar", {
+    method: "POST",
+    headers: {
+      "Authorization": localStorage.getItem("token")
+    },
+    body: formData
+  });
+
+  alert("Upload berhasil");
+  loadProfile();
+}
+
+loadProfile();
+</script>
+
+</body>
+</html>

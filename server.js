@@ -26,7 +26,8 @@ console.log("Database connected");
 // ================== MODELS ==================
 const User = mongoose.model("User", {
   username: String,
-  password: String
+  password: String,
+  avatar: String // 🆕 foto profil
 });
 
 const Video = mongoose.model("Video", {
@@ -63,7 +64,21 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 
 // ================== ROUTES ==================
+app.get("/profile", auth, async (req, res) => {
+  const user = await User.findOne({ username: req.user.username });
+  res.json(user);
+});
+app.post("/upload-avatar", auth, upload.single("avatar"), async (req, res) => {
+  await User.updateOne(
+    { username: req.user.username },
+    { avatar: req.file.filename }
+  );
 
+  res.send("Foto profil diupdate");
+});
+app.get("/profile-page", auth, (req, res) => {
+  res.sendFile(__dirname + "/profile.html");
+});
 // LOGIN PAGE (PUBLIC)
 app.get("/login", (req, res) => {
   res.sendFile(__dirname + "/login.html");

@@ -1,40 +1,3 @@
-const bcrypt = require("bcryptjs");
-const jwt = require("jsonwebtoken");
-const bodyParser = require("body-parser");
-
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
-const User = mongoose.model("User", {
-  username: String,
-  password: String
-});
-app.post("/register", async (req, res) => {
-  const { username, password } = req.body;
-
-  const hashed = await bcrypt.hash(password, 10);
-
-  await User.create({
-    username,
-    password: hashed
-  });
-
-  res.send("Register berhasil");
-});
-app.post("/login", async (req, res) => {
-  const { username, password } = req.body;
-
-  const user = await User.findOne({ username });
-
-  if (!user) return res.send("User tidak ditemukan");
-
-  const valid = await bcrypt.compare(password, user.password);
-
-  if (!valid) return res.send("Password salah");
-
-  const token = jwt.sign({ username }, "secret123");
-
-  res.json({ token });
-});
 // ================== IMPORT ==================
 const express = require("express");
 const http = require("http");
@@ -42,25 +5,37 @@ const socketIo = require("socket.io");
 const mongoose = require("mongoose");
 const multer = require("multer");
 const path = require("path");
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
 
 // ================== INIT ==================
 const app = express();
 const server = http.createServer(app);
 const io = socketIo(server);
 
+// ================== MIDDLEWARE ==================
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use("/uploads", express.static("uploads"));
+
 // ================== DATABASE ==================
 mongoose.connect("mongodb://admin:danil1001@ac-f5rjgfe-shard-00-00.dogatub.mongodb.net:27017,ac-f5rjgfe-shard-00-01.dogatub.mongodb.net:27017,ac-f5rjgfe-shard-00-02.dogatub.mongodb.net:27017/app?ssl=true&replicaSet=atlas-cb666r-shard-0&authSource=admin&retryWrites=true&w=majority");
 
 console.log("Database connected");
 
-// ================== MODEL ==================
+// ================== MODELS ==================
+const User = mongoose.model("User", {
+  username: String,
+  password: String
+});
+
 const Video = mongoose.model("Video", {
   filename: String,
   likes: Number,
   comments: [String]
 });
 
-// ================== MULTER (UPLOAD) ==================
+// ================== MULTER ==================
 const storage = multer.diskStorage({
   destination: "uploads/",
   filename: (req, file, cb) => {
@@ -69,9 +44,6 @@ const storage = multer.diskStorage({
 });
 
 const upload = multer({ storage });
-
-// ================== STATIC ==================
-app.use("/uploads", express.static("uploads"));
 
 // ================== ROUTES ==================
 
@@ -92,7 +64,41 @@ app.get("/feed", (req, res) => {
   res.sendFile(__dirname + "/feed.html");
 });
 
-// upload video
+// ================== AUTH ==================
+
+// REGISTER
+app.post("/register", async (req, res) => {
+  const { username, password } = req.body;
+
+  const hashed = await bcrypt.hash(password, 10);
+
+  await User.create({
+    username,
+    password: hashed
+  });
+
+  res.send("Register berhasil");
+});
+
+// LOGIN
+app.post("/login", async (req, res) => {
+  const { username, password } = req.body;
+
+  const user = await User.findOne({ username });
+
+  if (!user) return res.send("User tidak ditemukan");
+
+  const valid = await bcrypt.compare(password, user.password);
+
+  if (!valid) return res.send("Password salah");
+
+  const token = jwt.sign({ username }, "secret123");
+
+  res.json({ token });
+});
+
+// ================== VIDEO ==================
+
 app.post("/upload", upload.single("video"), async (req, res) => {
   await Video.create({
     filename: req.file.filename,
@@ -103,23 +109,22 @@ app.post("/upload", upload.single("video"), async (req, res) => {
   res.send("Upload berhasil");
 });
 
-// ambil video dari DB
 app.get("/videos", async (req, res) => {
   const videos = await Video.find();
   res.json(videos);
 });
 
 // ================== SOCKET ==================
+
 let users = {};
 let videoData = {};
 
 io.on("connection", (socket) => {
   console.log("User connect");
 
-  // LOGIN
+  // LOGIN SOCKET
   socket.on("login", (username) => {
     users[username] = socket.id;
-    console.log(username + " login");
   });
 
   // CHAT PRIVATE
@@ -127,10 +132,7 @@ io.on("connection", (socket) => {
     let target = users[data.to];
 
     if (target) {
-      io.to(target).emit("private_chat", {
-        from: data.from,
-        message: data.message
-      });
+      io.to(target).emit("private_chat", data);
     }
   });
 
@@ -143,7 +145,7 @@ io.on("connection", (socket) => {
     videoData[video].likes++;
 
     io.emit("update", {
-      video: video,
+      video,
       data: videoData[video]
     });
   });

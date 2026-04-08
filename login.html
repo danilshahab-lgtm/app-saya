@@ -4,14 +4,45 @@
 
 <h2>Login</h2>
 
-<input id="username" placeholder="Masukkan nama">
-<button onclick="login()">Masuk</button>
+<input id="username" placeholder="Username"><br><br>
+<input id="password" type="password" placeholder="Password"><br><br>
+
+<button onclick="login()">Login</button>
+<button onclick="register()">Register</button>
 
 <script>
-function login(){
+async function register(){
   let username = document.getElementById("username").value;
-  localStorage.setItem("username", username);
-  window.location.href = "/";
+  let password = document.getElementById("password").value;
+
+  await fetch("/register", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({ username, password })
+  });
+
+  alert("Register berhasil");
+}
+
+async function login(){
+  let username = document.getElementById("username").value;
+  let password = document.getElementById("password").value;
+
+  let res = await fetch("/login", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({ username, password })
+  });
+
+  let data = await res.json();
+
+  if(data.token){
+    localStorage.setItem("token", data.token);
+    localStorage.setItem("username", username);
+    window.location.href = "/";
+  } else {
+    alert("Login gagal");
+  }
 }
 </script>
 

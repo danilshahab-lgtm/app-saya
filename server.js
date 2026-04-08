@@ -1,3 +1,40 @@
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
+const bodyParser = require("body-parser");
+
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
+const User = mongoose.model("User", {
+  username: String,
+  password: String
+});
+app.post("/register", async (req, res) => {
+  const { username, password } = req.body;
+
+  const hashed = await bcrypt.hash(password, 10);
+
+  await User.create({
+    username,
+    password: hashed
+  });
+
+  res.send("Register berhasil");
+});
+app.post("/login", async (req, res) => {
+  const { username, password } = req.body;
+
+  const user = await User.findOne({ username });
+
+  if (!user) return res.send("User tidak ditemukan");
+
+  const valid = await bcrypt.compare(password, user.password);
+
+  if (!valid) return res.send("Password salah");
+
+  const token = jwt.sign({ username }, "secret123");
+
+  res.json({ token });
+});
 // ================== IMPORT ==================
 const express = require("express");
 const http = require("http");

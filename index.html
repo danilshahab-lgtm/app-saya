@@ -1,16 +1,79 @@
-<body style="background:black;color:white;text-align:center">
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
 
-<h2>☕ GAHWAA</h2>
+<style>
+body{
+  margin:0;
+  font-family:Arial;
+  background:#0f172a;
+  color:white;
+}
 
-<button onclick="go('/feed')">🎥 Feed</button>
-<button onclick="go('/upload')">➕ Upload</button>
-<button onclick="go('/private')">💬 Chat</button>
-<button onclick="go('/group')">👥 Group</button>
-<button onclick="go('/live')">🔴 Live</button>
-<button onclick="go('/call')">📹 Call</button>
+/* HEADER */
+.header{
+  text-align:center;
+  padding:15px;
+  font-size:20px;
+  background:#020617;
+  font-weight:bold;
+}
+
+/* CARD */
+.card{
+  margin:15px;
+  padding:15px;
+  background:#1e293b;
+  border-radius:10px;
+}
+
+/* NAV */
+.nav{
+  position:fixed;
+  bottom:0;
+  width:100%;
+  display:flex;
+  justify-content:space-around;
+  background:#020617;
+  padding:10px;
+  border-top:1px solid #333;
+}
+
+button{
+  background:none;
+  border:none;
+  color:white;
+  font-size:18px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="header">☕ GAHWAA</div>
+
+<div class="card">
+  <h3>Welcome</h3>
+  <p>Chat • Video • Live</p>
+</div>
+
+<div class="card">
+  <p>Status: Online</p>
+</div>
+
+<div class="nav">
+  <button onclick="go('/feed')">🎥</button>
+  <button onclick="go('/upload')">➕</button>
+  <button onclick="go('/private')">💬</button>
+  <button onclick="go('/group')">👥</button>
+  <button onclick="go('/live')">🔴</button>
+  <button onclick="go('/call')">📹</button>
+</div>
 
 <script>
 function go(u){location.href=u;}
 </script>
 
 </body>
+</html>

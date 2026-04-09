@@ -1,8 +1,13 @@
-<select id="room">
-<option value="umum">Umum</option>
-<option value="bisnis">Bisnis</option>
-</select>
+<body style="background:#111;color:white">
 
+<h3>👥 Group Chat</h3>
+
+<input id="groupName" placeholder="Nama group">
+<button onclick="create()">Buat Group</button>
+
+<hr>
+
+<select id="room"></select>
 <button onclick="join()">Join</button>
 
 <div id="chat"></div>
@@ -13,15 +18,32 @@
 <script src="/socket.io/socket.io.js"></script>
 <script>
 const socket=io();
+let user=localStorage.getItem("username");
+let groups=[];
 
+// CREATE GROUP
+function create(){
+  let name=groupName.value;
+  groups.push(name);
+
+  room.innerHTML=groups.map(g=>`<option>${g}</option>`).join("");
+}
+
+// JOIN
 function join(){
   socket.emit("join_group",room.value);
 }
 
+// SEND
 function send(){
-  socket.emit("group_chat",{room:room.value,user:"user",message:msg.value});
+  socket.emit("group_chat",{
+    room:room.value,
+    user:user,
+    message:msg.value
+  });
 }
 
+// RECEIVE
 socket.on("group_chat",d=>{
   chat.innerHTML+=`<p>${d.user}: ${d.message}</p>`;
 });

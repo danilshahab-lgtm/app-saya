@@ -1,8 +1,17 @@
-<div id="users"></div>
-<div id="chat"></div>
+<body style="display:flex;margin:0;background:#111;color:white">
 
-<input id="msg">
-<button onclick="send()">Send</button>
+<!-- LIST -->
+<div style="width:30%;border-right:1px solid #333;padding:10px" id="users"></div>
+
+<!-- CHAT -->
+<div style="flex:1;display:flex;flex-direction:column">
+  <div id="chat" style="flex:1;overflow:auto;padding:10px"></div>
+
+  <div style="display:flex">
+    <input id="msg" style="flex:1;padding:10px">
+    <button onclick="send()">➤</button>
+  </div>
+</div>
 
 <script src="/socket.io/socket.io.js"></script>
 <script>
@@ -12,22 +21,33 @@ let target="";
 
 socket.emit("online",user);
 
+// LOAD USERS
 socket.on("online_users",list=>{
-  fetch("/users").then(r=>r.json()).then(d=>{
-    users.innerHTML=d.map(u=>`
-    <div onclick="select('${u.username}')">
+  fetch("/users").then(r=>r.json()).then(data=>{
+    users.innerHTML=data.map(u=>`
+    <div onclick="select('${u.username}')"
+    style="padding:10px;border-bottom:1px solid #222">
     ${u.username} ${list.includes(u.username)?"🟢":""}
     </div>`).join("");
   });
 });
 
-function select(u){target=u;}
-
-function send(){
-  socket.emit("private_chat",{from:user,to:target,message:msg.value});
+function select(u){
+  target=u;
+  chat.innerHTML="";
 }
 
+// SEND
+function send(){
+  socket.emit("private_chat",{from:user,to:target,message:msg.value});
+  msg.value="";
+}
+
+// RECEIVE
 socket.on("private_chat",d=>{
-  chat.innerHTML+=`<p>${d.from}: ${d.message}</p>`;
+  chat.innerHTML+=`
+  <div style="margin:5px">
+  <b>${d.from}:</b> ${d.message}
+  </div>`;
 });
 </script>

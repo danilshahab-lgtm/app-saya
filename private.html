@@ -3,7 +3,6 @@
 
 <input id="msg">
 <button onclick="send()">Send</button>
-<button onclick="call()">📹 Call</button>
 
 <script src="/socket.io/socket.io.js"></script>
 <script>
@@ -13,10 +12,16 @@ let target="";
 
 socket.emit("online",user);
 
-function call(){
-  socket.emit("call_user",{from:user,to:target});
-  location.href="/call";
-}
+socket.on("online_users",list=>{
+  fetch("/users").then(r=>r.json()).then(d=>{
+    users.innerHTML=d.map(u=>`
+    <div onclick="select('${u.username}')">
+    ${u.username} ${list.includes(u.username)?"🟢":""}
+    </div>`).join("");
+  });
+});
+
+function select(u){target=u;}
 
 function send(){
   socket.emit("private_chat",{from:user,to:target,message:msg.value});

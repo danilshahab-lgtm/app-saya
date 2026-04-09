@@ -6,8 +6,8 @@
 fetch("/videos").then(r=>r.json()).then(data=>{
   data.forEach(v=>{
     feed.innerHTML+=`
-      <video src="/uploads/${v.filename}" controls style="width:100%;height:100vh;object-fit:cover"></video>
-    `;
+    <video src="/uploads/${v.filename}" controls
+    style="width:100%;height:100vh;object-fit:cover"></video>`;
   });
 });
 </script>

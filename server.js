@@ -1,51 +1,40 @@
-// ================= IMPORT =================
 const express = require("express");
 const http = require("http");
 const socketIo = require("socket.io");
 const mongoose = require("mongoose");
 const multer = require("multer");
-const path = require("path");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const cookieParser = require("cookie-parser");
 
-// ================= INIT =================
 const app = express();
 const server = http.createServer(app);
 const io = socketIo(server);
 
-// ================= MIDDLEWARE =================
 app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(express.static(__dirname));
 app.use("/uploads", express.static("uploads"));
 
-// ================= DATABASE =================
 mongoose.connect(process.env.MONGO_URL);
 
-// ================= MODEL =================
+// MODELS
 const User = mongoose.model("User", {
   username: String,
-  password: String,
-  coins: { type: Number, default: 100 }
+  password: String
 });
 
 const Video = mongoose.model("Video", {
-  filename: String,
-  likes: { type: Number, default: 0 },
-  comments: [String]
+  filename: String
 });
 
 const Chat = mongoose.model("Chat", {
   from: String,
   to: String,
-  message: String,
-  time: { type: Date, default: Date.now },
-  seen: Boolean
+  message: String
 });
 
-// ================= AUTH =================
+// AUTH
 function auth(req,res,next){
   const token = req.cookies.token;
   if(!token) return res.redirect("/login.html");
@@ -58,25 +47,20 @@ function auth(req,res,next){
   }
 }
 
-// ================= STORAGE =================
-const storage = multer.diskStorage({
-  destination: "uploads/",
-  filename: (req, file, cb) => {
-    cb(null, Date.now() + path.extname(file.originalname));
-  }
-});
-const upload = multer({ storage });
+// FILE UPLOAD
+const upload = multer({ dest:"uploads/" });
 
-// ================= ROUTES =================
+// ROUTES
 app.get("/", auth,(req,res)=>res.sendFile(__dirname+"/index.html"));
 app.get("/feed", auth,(req,res)=>res.sendFile(__dirname+"/feed.html"));
 app.get("/upload", auth,(req,res)=>res.sendFile(__dirname+"/upload.html"));
 app.get("/private", auth,(req,res)=>res.sendFile(__dirname+"/private.html"));
+app.get("/group", auth,(req,res)=>res.sendFile(__dirname+"/group.html"));
 app.get("/live", auth,(req,res)=>res.sendFile(__dirname+"/live.html"));
 app.get("/call", auth,(req,res)=>res.sendFile(__dirname+"/videocall.html"));
 app.get("/login",(req,res)=>res.sendFile(__dirname+"/login.html"));
 
-// ================= AUTH =================
+// AUTH API
 app.post("/register", async (req,res)=>{
   const hash = await bcrypt.hash(req.body.password,10);
   await User.create({username:req.body.username,password:hash});
@@ -92,23 +76,12 @@ app.post("/login", async (req,res)=>{
 
   const token = jwt.sign({username:user.username},"secret123");
   res.cookie("token",token);
-
   res.json({success:true});
 });
 
-// ================= USERS =================
-app.get("/users", auth, async (req,res)=>{
-  res.json(await User.find({}, "username"));
-});
-
-// ================= PROFILE =================
-app.get("/profile", auth, async (req,res)=>{
-  res.json(await User.findOne({username:req.user.username}));
-});
-
-// ================= VIDEO =================
+// VIDEO
 app.post("/upload", auth, upload.single("video"), async (req,res)=>{
-  await Video.create({ filename:req.file.filename });
+  await Video.create({filename:req.file.filename});
   res.send("OK");
 });
 
@@ -116,7 +89,12 @@ app.get("/videos", async (req,res)=>{
   res.json(await Video.find());
 });
 
-// ================= CHAT =================
+// USERS
+app.get("/users", auth, async (req,res)=>{
+  res.json(await User.find({}, "username"));
+});
+
+// CHAT HISTORY
 app.get("/chat/:user", auth, async (req,res)=>{
   const data = await Chat.find({
     $or:[
@@ -127,9 +105,8 @@ app.get("/chat/:user", auth, async (req,res)=>{
   res.json(data);
 });
 
-// ================= SOCKET =================
+// SOCKET
 let onlineUsers = {};
-let liveUsers = {};
 
 io.on("connection",(socket)=>{
 
@@ -140,30 +117,22 @@ io.on("connection",(socket)=>{
 
   // PRIVATE CHAT
   socket.on("private_chat", async (d)=>{
-    await Chat.create({...d,seen:false});
-
+    await Chat.create(d);
     let to = onlineUsers[d.to];
     if(to) io.to(to).emit("private_chat",d);
-
     socket.emit("private_chat",d);
   });
 
   // GROUP CHAT
+  socket.on("join_group",(room)=>{
+    socket.join(room);
+  });
+
   socket.on("group_chat",(d)=>{
-    io.emit("group_chat",d);
+    io.to(d.room).emit("group_chat",d);
   });
 
-  // LIVE
-  socket.on("start_live",(u)=>{
-    liveUsers[u]=socket.id;
-    io.emit("live_list",Object.keys(liveUsers));
-  });
-
-  socket.on("live_chat",(d)=>{
-    io.emit("live_chat",d);
-  });
-
-  // VIDEO CALL
+  // VIDEO CALL SIGNALING
   socket.on("call_user",(d)=>{
     let to = onlineUsers[d.to];
     if(to) io.to(to).emit("incoming_call",d);
@@ -176,5 +145,4 @@ io.on("connection",(socket)=>{
 
 });
 
-// ================= START =================
 server.listen(process.env.PORT||3000);

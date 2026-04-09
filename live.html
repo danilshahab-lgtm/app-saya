@@ -1,33 +1,17 @@
-<!DOCTYPE html>
-<html>
-<body style="background:black;color:white;text-align:center">
-
-<h2>🔴 LIVE</h2>
-
+<h2>LIVE</h2>
 <div id="chat"></div>
-
 <input id="msg">
-<button onclick="send()">Kirim</button>
+<button onclick="send()">Send</button>
 
 <script src="/socket.io/socket.io.js"></script>
-
 <script>
-const socket = io();
-let username = localStorage.getItem("username");
-
-socket.emit("start_live", username);
+const socket=io();
 
 function send(){
-  socket.emit("live_chat",{
-    user:username,
-    message:msg.value
-  });
+  socket.emit("live_chat",{message:msg.value});
 }
 
-socket.on("live_chat",(d)=>{
-  chat.innerHTML += "<p>"+d.user+": "+d.message+"</p>";
+socket.on("live_chat",d=>{
+  chat.innerHTML+=`<p>${d.message}</p>`;
 });
 </script>
-
-</body>
-</html>

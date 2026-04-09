@@ -1,36 +1,16 @@
-<!DOCTYPE html>
-<html>
-<head>
-<style>
-body{margin:0;background:#000;color:#fff;font-family:Arial;}
-.nav{
-  position:fixed;
-  bottom:0;
-  width:100%;
-  display:flex;
-  justify-content:space-around;
-  background:#111;
-  padding:10px;
-}
-button{background:none;border:none;color:white;font-size:16px;}
-</style>
-</head>
+<body style="background:black;color:white;text-align:center">
 
-<body>
+<h2>☕ GAHWAA</h2>
 
-<h2 style="text-align:center">🔥 SUPER APP</h2>
-
-<div class="nav">
-<button onclick="go('/feed')">🎥</button>
-<button onclick="go('/upload')">➕</button>
-<button onclick="go('/private')">💬</button>
-<button onclick="go('/live')">🔴</button>
-<button onclick="go('/call')">📹</button>
-</div>
+<button onclick="go('/feed')">🎥 Feed</button>
+<button onclick="go('/upload')">➕ Upload</button>
+<button onclick="go('/private')">💬 Chat</button>
+<button onclick="go('/group')">👥 Group</button>
+<button onclick="go('/live')">🔴 Live</button>
+<button onclick="go('/call')">📹 Call</button>
 
 <script>
 function go(u){location.href=u;}
 </script>
 
 </body>
-</html>

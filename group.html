@@ -1,0 +1,28 @@
+<select id="room">
+<option value="umum">Umum</option>
+<option value="bisnis">Bisnis</option>
+</select>
+
+<button onclick="join()">Join</button>
+
+<div id="chat"></div>
+
+<input id="msg">
+<button onclick="send()">Send</button>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+const socket=io();
+
+function join(){
+  socket.emit("join_group",room.value);
+}
+
+function send(){
+  socket.emit("group_chat",{room:room.value,user:"user",message:msg.value});
+}
+
+socket.on("group_chat",d=>{
+  chat.innerHTML+=`<p>${d.user}: ${d.message}</p>`;
+});
+</script>

@@ -1,13 +1,12 @@
-<!DOCTYPE html>
-<html>
-<body>
+<input type="file" id="f">
+<button onclick="up()">Upload</button>
 
-<h2>Upload Video</h2>
+<script>
+async function up(){
+  let form = new FormData();
+  form.append("video",f.files[0]);
 
-<form action="/upload" method="POST" enctype="multipart/form-data">
-  <input type="file" name="video" required>
-  <button type="submit">Upload</button>
-</form>
-
-</body>
-</html>
+  await fetch("/upload",{method:"POST",body:form});
+  alert("uploaded");
+}
+</script>

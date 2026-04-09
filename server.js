@@ -1,3 +1,5 @@
+const cookieParser = require("cookie-parser");
+app.use(cookieParser());
 // ================== IMPORT ==================
 const express = require("express");
 const http = require("http");
@@ -39,10 +41,10 @@ const Video = mongoose.model("Video", {
 
 // ================== AUTH ==================
 function auth(req, res, next){
-  const token = req.headers.authorization;
+  const token = req.cookies.token;
 
   if(!token){
-    return res.redirect("/login.html");
+    return res.redirect("/login");
   }
 
   try{
@@ -50,7 +52,7 @@ function auth(req, res, next){
     req.user = data;
     next();
   }catch{
-    res.redirect("/login.html");
+    res.redirect("/login");
   }
 }
 
@@ -119,7 +121,10 @@ app.post("/login", async (req, res) => {
 
   const token = jwt.sign({ username }, "secret123");
 
-  res.json({ success: true, token });
+  // 🔥 simpan ke cookie
+  res.cookie("token", token);
+
+  res.json({ success: true });
 });
 
 // ================== VIDEO ==================

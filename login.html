@@ -37,7 +37,6 @@ async function login(){
   let data = await res.json();
 
   if(data.success){
-    localStorage.setItem("token", data.token);
     localStorage.setItem("username", username);
     window.location.href = "/";
   } else {

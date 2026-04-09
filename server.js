@@ -22,8 +22,8 @@ app.use(cookieParser());
 app.use(express.static(__dirname));
 app.use("/uploads", express.static("uploads"));
 
-// ================= DATABASE (ATLAS) =================
-mongoose.connect("mongodb://admin:danil1001@ac-f5rjgfe-shard-00-00.dogatub.mongodb.net:27017,ac-f5rjgfe-shard-00-01.dogatub.mongodb.net:27017,ac-f5rjgfe-shard-00-02.dogatub.mongodb.net:27017/app?ssl=true&replicaSet=atlas-cb666r-shard-0&authSource=admin&retryWrites=true&w=majority");
+// ================= DATABASE =================
+mongoose.connect(process.env.MONGO_URL);
 
 // ================= MIDTRANS =================
 let snap = new midtransClient.Snap({
@@ -40,7 +40,7 @@ const User = mongoose.model("User", {
 
 const Video = mongoose.model("Video", {
   filename: String,
-  likes: Number,
+  likes: { type: Number, default: 0 },
   comments: [String]
 });
 
@@ -58,7 +58,7 @@ function auth(req, res, next){
   }
 }
 
-// ================= MULTER =================
+// ================= STORAGE =================
 const storage = multer.diskStorage({
   destination: "uploads/",
   filename: (req, file, cb) => {
@@ -73,10 +73,19 @@ app.get("/", auth, (req,res)=>res.sendFile(__dirname+"/index.html"));
 app.get("/chat", auth, (req,res)=>res.sendFile(__dirname+"/chat.html"));
 app.get("/live", auth, (req,res)=>res.sendFile(__dirname+"/live.html"));
 
+// ================= PROFILE =================
+app.get("/profile", auth, async (req,res)=>{
+  const user = await User.findOne({username:req.user.username});
+  res.json(user);
+});
+
 // ================= AUTH =================
 app.post("/register", async (req,res)=>{
   const hashed = await bcrypt.hash(req.body.password,10);
-  await User.create({ username:req.body.username, password:hashed });
+  await User.create({
+    username:req.body.username,
+    password:hashed
+  });
   res.json({success:true});
 });
 
@@ -93,7 +102,7 @@ app.post("/login", async (req,res)=>{
   res.json({success:true});
 });
 
-// ================= MIDTRANS PAYMENT =================
+// ================= PAYMENT =================
 app.post("/payment", auth, async (req,res)=>{
   let parameter = {
     transaction_details: {
@@ -103,25 +112,22 @@ app.post("/payment", auth, async (req,res)=>{
   };
 
   const transaction = await snap.createTransaction(parameter);
-
   res.json({ token: transaction.token });
 });
 
-// ================= TOPUP AFTER SUCCESS =================
+// ================= TOPUP =================
 app.post("/topup-success", auth, async (req,res)=>{
   await User.updateOne(
     {username:req.user.username},
     {$inc:{coins:100}}
   );
-  res.send("Topup OK");
+  res.send("OK");
 });
 
 // ================= VIDEO =================
 app.post("/upload", auth, upload.single("video"), async (req,res)=>{
   await Video.create({
-    filename:req.file.filename,
-    likes:0,
-    comments:[]
+    filename:req.file.filename
   });
   res.send("OK");
 });
@@ -145,18 +151,21 @@ io.on("connection",(socket)=>{
     io.emit("group_chat",data);
   });
 
-  // LIVE
+  // LIVE START
   socket.on("start_live",(username)=>{
     liveUsers[username]=socket.id;
     io.emit("live_list",Object.keys(liveUsers));
   });
 
+  // LIVE CHAT
   socket.on("live_chat",(data)=>{
     io.emit("live_chat",data);
   });
 
 });
 
-// ================= PORT =================
+// ================= START =================
 const PORT = process.env.PORT || 3000;
-server.listen(PORT,()=>console.log("RUN "+PORT));
+server.listen(PORT,()=>{
+  console.log("🚀 SERVER RUNNING ON " + PORT);
+});

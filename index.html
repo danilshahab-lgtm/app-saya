@@ -2,156 +2,66 @@
 <html>
 <head>
   <title>App Saya</title>
+
   <style>
     body {
+      margin: 0;
       font-family: Arial;
-      text-align: center;
+      background: black;
+      color: white;
     }
 
-    video {
-      width: 90%;
-      max-width: 400px;
-      margin-top: 10px;
+    .container {
+      padding-bottom: 70px;
     }
 
-    #chat {
-      border: 1px solid #ccc;
-      height: 150px;
-      overflow-y: scroll;
-      margin: 10px;
-      padding: 5px;
+    /* NAVBAR */
+    .nav {
+      position: fixed;
+      bottom: 0;
+      width: 100%;
+      height: 60px;
+      background: #111;
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      border-top: 1px solid #333;
     }
 
-    input {
-      margin: 5px;
-      padding: 5px;
+    .nav button {
+      background: none;
+      border: none;
+      color: white;
+      font-size: 16px;
     }
 
-    button {
-      padding: 5px 10px;
+    .nav button:hover {
+      color: red;
+    }
+
+    h2 {
+      padding: 10px;
     }
   </style>
 </head>
 
 <body>
 
-<h2>🔥 App Sosial Saya</h2>
+<div class="container">
+  <h2>🏠 Home</h2>
+</div>
 
-<!-- MENU -->
-<a href="/profile-page">👤 Profile</a> |
-<a href="/upload">🎥 Upload</a> |
-<a href="/feed">📺 Feed</a>
-
-<hr>
-
-<!-- CHAT -->
-<h3>💬 Chat Private</h3>
-
-<div id="chat"></div>
-
-<input id="to" placeholder="Kirim ke (username)">
-<input id="msg" placeholder="Pesan">
-<button onclick="send()">Kirim</button>
-
-<hr>
-
-<!-- FEED VIDEO -->
-<h3>🎬 Feed Video</h3>
-
-<div id="feed"></div>
-
-<script src="/socket.io/socket.io.js"></script>
+<!-- NAV -->
+<div class="nav">
+  <button onclick="go('/feed')">🎥 Feed</button>
+  <button onclick="go('/upload')">➕ Upload</button>
+  <button onclick="go('/profile-page')">👤 Profile</button>
+</div>
 
 <script>
-// ================= LOGIN CHECK =================
-let token = localStorage.getItem("token");
-let username = localStorage.getItem("username");
-
-if(!token){
-  window.location.href = "/login";
+function go(url){
+  window.location.href = url;
 }
-
-// ================= SOCKET =================
-const socket = io();
-
-// kirim username ke socket
-socket.emit("login", username);
-
-// ================= CHAT =================
-function send(){
-  let msg = document.getElementById("msg").value;
-  let to = document.getElementById("to").value;
-
-  socket.emit("private_chat", {
-    from: username,
-    to: to,
-    message: msg
-  });
-}
-
-socket.on("private_chat", (data) => {
-  document.getElementById("chat").innerHTML += 
-    "<p><b>" + data.from + ":</b> " + data.message + "</p>";
-});
-
-// ================= VIDEO FEED =================
-fetch("/videos")
-  .then(res => res.json())
-  .then(data => {
-    let feed = document.getElementById("feed");
-
-    data.forEach(v => {
-      feed.innerHTML += `
-        <div id="${v.filename}">
-          <video controls>
-            <source src="/uploads/${v.filename}" type="video/mp4">
-          </video><br>
-
-          <button onclick="like('${v.filename}')">❤️ Like</button>
-          <span id="likes-${v.filename}">${v.likes}</span>
-
-          <br><br>
-
-          <input id="comment-${v.filename}" placeholder="Komentar">
-          <button onclick="comment('${v.filename}')">Kirim</button>
-
-          <div id="comments-${v.filename}">
-            ${v.comments.map(c => "<p>"+c+"</p>").join("")}
-          </div>
-
-          <hr>
-        </div>
-      `;
-    });
-  });
-
-// ================= LIKE =================
-function like(video){
-  socket.emit("like", video);
-}
-
-// ================= KOMENTAR =================
-function comment(video){
-  let text = document.getElementById("comment-" + video).value;
-
-  socket.emit("comment", {
-    video: video,
-    text: text
-  });
-}
-
-// ================= UPDATE REALTIME =================
-socket.on("update", (res) => {
-  document.getElementById("likes-" + res.video).innerText = res.data.likes;
-
-  let comments = document.getElementById("comments-" + res.video);
-  comments.innerHTML = "";
-
-  res.data.comments.forEach(c => {
-    comments.innerHTML += "<p>" + c + "</p>";
-  });
-});
-
 </script>
 
 </body>

@@ -1,32 +1,101 @@
 <!DOCTYPE html>
 <html>
+<head>
+  <title>Profile</title>
+
+  <style>
+    body {
+      font-family: Arial;
+      background: black;
+      color: white;
+      text-align: center;
+      margin: 0;
+    }
+
+    .box {
+      margin-top: 30px;
+    }
+
+    img {
+      width: 120px;
+      height: 120px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 3px solid white;
+    }
+
+    input, button {
+      padding: 8px;
+      margin: 5px;
+    }
+
+    .nav {
+      position: fixed;
+      bottom: 0;
+      width: 100%;
+      height: 60px;
+      background: #111;
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+    }
+
+    .nav button {
+      background: none;
+      border: none;
+      color: white;
+    }
+  </style>
+</head>
+
 <body>
 
-<h2>Profile User</h2>
+<h2>👤 Profile</h2>
 
-<img id="avatar" width="150"><br><br>
-<h3 id="username"></h3>
+<div class="box">
+  <img id="avatar" src="https://via.placeholder.com/120"><br>
+  <h3 id="username"></h3>
 
-<input type="file" id="file"><br><br>
-<button onclick="upload()">Upload Foto</button>
+  <p>Followers: <span id="followers">0</span></p>
+  <p>Following: <span id="following">0</span></p>
+
+  <hr>
+
+  <h4>Upload Avatar</h4>
+  <input type="file" id="file">
+  <button onclick="upload()">Upload</button>
+
+  <hr>
+
+  <button onclick="follow()">Follow User</button>
+</div>
+
+<!-- NAV -->
+<div class="nav">
+  <button onclick="go('/')">🏠</button>
+  <button onclick="go('/feed')">🎥</button>
+  <button onclick="go('/upload')">➕</button>
+</div>
 
 <script>
-async function loadProfile(){
-  let res = await fetch("/profile", {
-    headers: {
-      "Authorization": localStorage.getItem("token")
-    }
-  });
 
+// ================= LOAD PROFILE =================
+async function load(){
+  let res = await fetch("/profile");
   let user = await res.json();
 
   document.getElementById("username").innerText = user.username;
+  document.getElementById("followers").innerText = user.followers.length;
+  document.getElementById("following").innerText = user.following.length;
 
   if(user.avatar){
     document.getElementById("avatar").src = "/uploads/" + user.avatar;
   }
 }
 
+load();
+
+// ================= UPLOAD AVATAR =================
 async function upload(){
   let file = document.getElementById("file").files[0];
 
@@ -35,17 +104,31 @@ async function upload(){
 
   await fetch("/upload-avatar", {
     method: "POST",
-    headers: {
-      "Authorization": localStorage.getItem("token")
-    },
     body: formData
   });
 
   alert("Upload berhasil");
-  loadProfile();
+  location.reload();
 }
 
-loadProfile();
+// ================= FOLLOW =================
+async function follow(){
+  let target = prompt("Masukkan username");
+
+  await fetch("/follow", {
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({ username: target })
+  });
+
+  alert("Follow berhasil");
+}
+
+// ================= NAV =================
+function go(url){
+  window.location.href = url;
+}
+
 </script>
 
 </body>

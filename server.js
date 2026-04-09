@@ -74,7 +74,22 @@ app.get("/login", (req, res) => {
 app.get("/", auth, (req, res) => {
   res.sendFile(__dirname + "/index.html");
 });
+// ================== PAGE ROUTES ==================
 
+// FEED PAGE
+app.get("/feed", auth, (req, res) => {
+  res.sendFile(__dirname + "/feed.html");
+});
+
+// UPLOAD PAGE
+app.get("/upload", auth, (req, res) => {
+  res.sendFile(__dirname + "/upload.html");
+});
+
+// PROFILE PAGE
+app.get("/profile-page", auth, (req, res) => {
+  res.sendFile(__dirname + "/profile.html");
+});
 // ================== AUTH API ==================
 
 app.post("/register", async (req, res) => {

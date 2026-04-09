@@ -1,54 +1,121 @@
 <!DOCTYPE html>
 <html>
-<body>
+<head>
+  <title>Feed TikTok Style</title>
 
-<h2>Feed Video</h2>
+  <style>
+    body {
+      margin: 0;
+      overflow-y: scroll;
+      scroll-snap-type: y mandatory;
+      font-family: Arial;
+      background: black;
+    }
+
+    .video-container {
+      height: 100vh;
+      scroll-snap-align: start;
+      position: relative;
+    }
+
+    video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .overlay {
+      position: absolute;
+      bottom: 20px;
+      left: 10px;
+      color: white;
+    }
+
+    button {
+      padding: 5px;
+      margin-top: 5px;
+    }
+
+    input {
+      padding: 5px;
+    }
+  </style>
+</head>
+
+<body>
 
 <div id="feed"></div>
 
 <script src="/socket.io/socket.io.js"></script>
 
 <script>
+// ================= LOGIN CHECK =================
+if(!localStorage.getItem("token")){
+  window.location.href = "/login";
+}
+
 const socket = io();
 
+// ================= LOAD VIDEO =================
 fetch("/videos")
   .then(res => res.json())
   .then(data => {
+
     let feed = document.getElementById("feed");
 
     data.forEach(v => {
       feed.innerHTML += `
-        <div id="${v.filename}">
-          <video width="300" controls>
+        <div class="video-container" id="${v.filename}">
+          
+          <video autoplay muted loop>
             <source src="/uploads/${v.filename}" type="video/mp4">
-          </video><br>
+          </video>
 
-          <button onclick="like('${v.filename}')">❤️ Like</button>
-          <span id="likes-${v.filename}">${v.likes}</span> like
+          <div class="overlay">
+            <p><b>${v.filename}</b></p>
 
-          <br><br>
+            <button onclick="like('${v.filename}')">❤️ ${v.likes}</button><br>
 
-          <input id="comment-${v.filename}" placeholder="Komentar...">
-          <button onclick="comment('${v.filename}')">Kirim</button>
+            <input id="c-${v.filename}" placeholder="Komentar"><br>
+            <button onclick="comment('${v.filename}')">Kirim</button>
 
-          <div id="comments-${v.filename}">
-            ${v.comments.map(c => "<p>"+c+"</p>").join("")}
+            <div id="cm-${v.filename}">
+              ${v.comments.map(c => "<p>"+c+"</p>").join("")}
+            </div>
           </div>
 
-          <hr>
         </div>
       `;
     });
+
+    autoPlay();
   });
 
-// LIKE
+// ================= AUTO PLAY =================
+function autoPlay(){
+  let videos = document.querySelectorAll("video");
+
+  window.addEventListener("scroll", () => {
+    videos.forEach(video => {
+      let rect = video.getBoundingClientRect();
+
+      if(rect.top >= 0 && rect.top < window.innerHeight/2){
+        video.play();
+      } else {
+        video.pause();
+      }
+    });
+  });
+}
+
+// ================= LIKE =================
 function like(video){
   socket.emit("like", video);
 }
 
-// KOMENTAR
+// ================= KOMENTAR =================
 function comment(video){
-  let text = document.getElementById("comment-" + video).value;
+  let text = document.getElementById("c-" + video).value;
 
   socket.emit("comment", {
     video: video,
@@ -56,15 +123,16 @@ function comment(video){
   });
 }
 
-// UPDATE REALTIME
+// ================= UPDATE =================
 socket.on("update", (res) => {
-  document.getElementById("likes-" + res.video).innerText = res.data.likes;
+  let btn = document.querySelector(`#${res.video} button`);
+  btn.innerText = "❤️ " + res.data.likes;
 
-  let comments = document.getElementById("comments-" + res.video);
-  comments.innerHTML = "";
+  let cm = document.getElementById("cm-" + res.video);
+  cm.innerHTML = "";
 
   res.data.comments.forEach(c => {
-    comments.innerHTML += "<p>" + c + "</p>";
+    cm.innerHTML += "<p>" + c + "</p>";
   });
 });
 </script>

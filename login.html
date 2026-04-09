@@ -1,49 +1,41 @@
-<!DOCTYPE html>
-<html>
-<body>
-
 <h2>Login</h2>
 
-<input id="username" placeholder="Username"><br><br>
-<input id="password" type="password" placeholder="Password"><br><br>
+<input id="username" placeholder="Username"><br>
+<input id="password" type="password" placeholder="Password"><br>
 
 <button onclick="login()">Login</button>
 <button onclick="register()">Register</button>
 
 <script>
 async function register(){
-  let username = document.getElementById("username").value;
-  let password = document.getElementById("password").value;
-
-  await fetch("/register", {
-    method: "POST",
-    headers: {"Content-Type": "application/json"},
-    body: JSON.stringify({ username, password })
+  await fetch("/register",{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({
+      username:username.value,
+      password:password.value
+    })
   });
-
-  alert("Register berhasil");
+  alert("Register OK");
 }
 
 async function login(){
-  let username = document.getElementById("username").value;
-  let password = document.getElementById("password").value;
-
-  let res = await fetch("/login", {
-    method: "POST",
-    headers: {"Content-Type": "application/json"},
-    body: JSON.stringify({ username, password })
+  let res = await fetch("/login",{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({
+      username:username.value,
+      password:password.value
+    })
   });
 
   let data = await res.json();
 
   if(data.success){
-    localStorage.setItem("username", username);
-    window.location.href = "/";
-  } else {
+    localStorage.setItem("username", username.value);
+    location.href="/";
+  }else{
     alert(data.message);
   }
 }
 </script>
-
-</body>
-</html>

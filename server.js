@@ -1,6 +1,4 @@
-const cookieParser = require("cookie-parser");
-app.use(cookieParser());
-// ================== IMPORT ==================
+// ================= IMPORT =================
 const express = require("express");
 const http = require("http");
 const socketIo = require("socket.io");
@@ -9,24 +7,26 @@ const multer = require("multer");
 const path = require("path");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const cookieParser = require("cookie-parser");
 
-// ================== INIT ==================
+// ================= INIT =================
 const app = express();
 const server = http.createServer(app);
 const io = socketIo(server);
 
-// ================== MIDDLEWARE ==================
+// ================= MIDDLEWARE =================
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
 app.use("/uploads", express.static("uploads"));
-app.use(express.static(__dirname)); // penting biar html kebaca
+app.use(express.static(__dirname));
 
-// ================== DATABASE ==================
+// ================= DATABASE =================
 mongoose.connect("mongodb://admin:danil1001@ac-f5rjgfe-shard-00-00.dogatub.mongodb.net:27017,ac-f5rjgfe-shard-00-01.dogatub.mongodb.net:27017,ac-f5rjgfe-shard-00-02.dogatub.mongodb.net:27017/app?ssl=true&replicaSet=atlas-cb666r-shard-0&authSource=admin&retryWrites=true&w=majority");
 
 console.log("Database connected");
 
-// ================== MODELS ==================
+// ================= MODELS =================
 const User = mongoose.model("User", {
   username: String,
   password: String,
@@ -39,12 +39,12 @@ const Video = mongoose.model("Video", {
   comments: [String]
 });
 
-// ================== AUTH ==================
+// ================= AUTH =================
 function auth(req, res, next){
   const token = req.cookies.token;
 
   if(!token){
-    return res.redirect("/login");
+    return res.redirect("/login.html");
   }
 
   try{
@@ -52,11 +52,11 @@ function auth(req, res, next){
     req.user = data;
     next();
   }catch{
-    res.redirect("/login");
+    res.redirect("/login.html");
   }
 }
 
-// ================== MULTER ==================
+// ================= MULTER =================
 const storage = multer.diskStorage({
   destination: "uploads/",
   filename: (req, file, cb) => {
@@ -65,42 +65,35 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
-// ================== ROUTES ==================
+// ================= ROUTES =================
 
-// 🔥 LOGIN PAGE (WAJIB DI ATAS)
+// PUBLIC
 app.get("/login", (req, res) => {
   res.sendFile(__dirname + "/login.html");
 });
 
-// 🔒 PROTECTED
+// PROTECTED
 app.get("/", auth, (req, res) => {
   res.sendFile(__dirname + "/index.html");
 });
-// ================== PAGE ROUTES ==================
 
-// FEED PAGE
 app.get("/feed", auth, (req, res) => {
   res.sendFile(__dirname + "/feed.html");
 });
 
-// UPLOAD PAGE
 app.get("/upload", auth, (req, res) => {
   res.sendFile(__dirname + "/upload.html");
 });
 
-// PROFILE PAGE
 app.get("/profile-page", auth, (req, res) => {
   res.sendFile(__dirname + "/profile.html");
 });
-// ================== AUTH API ==================
 
+// ================= AUTH API =================
 app.post("/register", async (req, res) => {
   const { username, password } = req.body;
-
   const hashed = await bcrypt.hash(password, 10);
-
   await User.create({ username, password: hashed });
-
   res.json({ success: true });
 });
 
@@ -108,35 +101,39 @@ app.post("/login", async (req, res) => {
   const { username, password } = req.body;
 
   const user = await User.findOne({ username });
-
-  if (!user) {
-    return res.json({ success: false, message: "User tidak ditemukan" });
-  }
+  if (!user) return res.json({ success:false, message:"User tidak ada" });
 
   const valid = await bcrypt.compare(password, user.password);
-
-  if (!valid) {
-    return res.json({ success: false, message: "Password salah" });
-  }
+  if (!valid) return res.json({ success:false, message:"Password salah" });
 
   const token = jwt.sign({ username }, "secret123");
-
-  // 🔥 simpan ke cookie
   res.cookie("token", token);
 
-  res.json({ success: true });
+  res.json({ success:true });
 });
 
-// ================== VIDEO ==================
+// ================= PROFILE =================
+app.get("/profile", auth, async (req, res) => {
+  const user = await User.findOne({ username: req.user.username });
+  res.json(user);
+});
 
+app.post("/upload-avatar", auth, upload.single("avatar"), async (req, res) => {
+  await User.updateOne(
+    { username: req.user.username },
+    { avatar: req.file.filename }
+  );
+  res.send("OK");
+});
+
+// ================= VIDEO =================
 app.post("/upload", auth, upload.single("video"), async (req, res) => {
   await Video.create({
     filename: req.file.filename,
     likes: 0,
     comments: []
   });
-
-  res.send("Upload berhasil");
+  res.send("OK");
 });
 
 app.get("/videos", async (req, res) => {
@@ -144,11 +141,12 @@ app.get("/videos", async (req, res) => {
   res.json(videos);
 });
 
-// ================== SOCKET ==================
+// ================= SOCKET =================
 let users = {};
 let videoData = {};
 
 io.on("connection", (socket) => {
+
   socket.on("login", (username) => {
     users[username] = socket.id;
   });
@@ -159,32 +157,19 @@ io.on("connection", (socket) => {
   });
 
   socket.on("like", (video) => {
-    if (!videoData[video]) {
-      videoData[video] = { likes: 0, comments: [] };
-    }
-
+    if (!videoData[video]) videoData[video] = { likes:0, comments:[] };
     videoData[video].likes++;
-
     io.emit("update", { video, data: videoData[video] });
   });
 
   socket.on("comment", (data) => {
-    if (!videoData[data.video]) {
-      videoData[data.video] = { likes: 0, comments: [] };
-    }
-
+    if (!videoData[data.video]) videoData[data.video] = { likes:0, comments:[] };
     videoData[data.video].comments.push(data.text);
-
-    io.emit("update", {
-      video: data.video,
-      data: videoData[data.video]
-    });
+    io.emit("update", { video:data.video, data: videoData[data.video] });
   });
+
 });
 
-// ================== PORT ==================
+// ================= PORT =================
 const PORT = process.env.PORT || 3000;
-
-server.listen(PORT, () => {
-  console.log("Server jalan di port " + PORT);
-});
+server.listen(PORT, () => console.log("Server jalan " + PORT));

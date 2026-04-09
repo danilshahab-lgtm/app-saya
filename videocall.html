@@ -1,0 +1,48 @@
+<video id="local" autoplay muted></video>
+<video id="remote" autoplay></video>
+
+<script src="/socket.io/socket.io.js"></script>
+
+<script>
+const socket = io();
+let user = localStorage.getItem("username");
+
+let pc = new RTCPeerConnection();
+
+navigator.mediaDevices.getUserMedia({video:true,audio:true})
+.then(stream=>{
+  local.srcObject = stream;
+  stream.getTracks().forEach(t=>pc.addTrack(t,stream));
+});
+
+pc.ontrack = e=>{
+  remote.srcObject = e.streams[0];
+};
+
+// OFFER
+async function startCall(to){
+  let offer = await pc.createOffer();
+  await pc.setLocalDescription(offer);
+
+  socket.emit("call_user",{to,offer});
+}
+
+socket.on("incoming_call", async (data)=>{
+  await pc.setRemoteDescription(data.offer);
+
+  let answer = await pc.createAnswer();
+  await pc.setLocalDescription(answer);
+
+  socket.emit("answer_call",{to:data.from,answer});
+});
+
+socket.on("call_answered", async (data)=>{
+  await pc.setRemoteDescription(data.answer);
+});
+
+pc.onicecandidate = e=>{
+  if(e.candidate){
+    socket.emit("ice_candidate",e.candidate);
+  }
+};
+</script>

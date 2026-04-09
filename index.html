@@ -1,124 +1,35 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>APP</title>
-
-  <script src="https://app.sandbox.midtrans.com/snap/snap.js"
-    data-client-key="Mid-client-7jJlFUtMYaWQfKPa"></script>
-
-  <style>
-    body{
-      background:#000;
-      color:#fff;
-      text-align:center;
-      font-family:Arial;
-    }
-
-    .btn{
-      padding:10px 15px;
-      margin:5px;
-      background:#111;
-      border:1px solid #444;
-      color:white;
-      cursor:pointer;
-    }
-
-    .card{
-      border:1px solid #333;
-      margin:10px;
-      padding:10px;
-    }
-  </style>
+<style>
+body{margin:0;background:#000;color:#fff;font-family:Arial;}
+.nav{
+  position:fixed;
+  bottom:0;
+  width:100%;
+  display:flex;
+  justify-content:space-around;
+  background:#111;
+  padding:10px;
+}
+button{background:none;border:none;color:white;font-size:16px;}
+</style>
 </head>
 
 <body>
 
-<h1>🔥 HOME</h1>
+<h2 style="text-align:center">🔥 SUPER APP</h2>
 
-<h3 id="coin">Loading...</h3>
-
-<button class="btn" onclick="topup()">💰 Topup</button>
-
-<hr>
-
-<button class="btn" onclick="go('/chat')">💬 Chat</button>
-<button class="btn" onclick="go('/live')">🔴 Live</button>
-
-<hr>
-
-<h2>🎥 Feed</h2>
-<div id="feed"></div>
+<div class="nav">
+<button onclick="go('/feed')">🎥</button>
+<button onclick="go('/upload')">➕</button>
+<button onclick="go('/private')">💬</button>
+<button onclick="go('/live')">🔴</button>
+<button onclick="go('/call')">📹</button>
+</div>
 
 <script>
-
-// ================= LOAD PROFILE =================
-async function loadProfile(){
-  try{
-    let res = await fetch("/profile");
-    let user = await res.json();
-    document.getElementById("coin").innerText = "Coin: " + user.coins;
-  }catch{
-    document.getElementById("coin").innerText = "Error load user";
-  }
-}
-
-// ================= LOAD VIDEO =================
-async function loadFeed(){
-  let res = await fetch("/videos");
-  let videos = await res.json();
-
-  let html = "";
-
-  videos.forEach(v=>{
-    html += `
-      <div class="card">
-        <video width="250" controls src="/uploads/${v.filename}"></video>
-        <p>❤️ ${v.likes}</p>
-      </div>
-    `;
-  });
-
-  document.getElementById("feed").innerHTML = html;
-}
-
-// ================= TOPUP =================
-async function topup(){
-  try{
-    let res = await fetch("/payment", {method:"POST"});
-    let data = await res.json();
-
-    if(!data.token){
-      alert("Gagal ambil token");
-      return;
-    }
-
-    window.snap.pay(data.token,{
-      onSuccess: async function(){
-        await fetch("/topup-success",{method:"POST"});
-        alert("Topup berhasil");
-        location.reload();
-      },
-      onError: function(err){
-        alert("Error payment");
-        console.log(err);
-      }
-    });
-
-  }catch(e){
-    alert("Topup error");
-    console.log(e);
-  }
-}
-
-// ================= NAV =================
-function go(url){
-  location.href = url;
-}
-
-// ================= INIT =================
-loadProfile();
-loadFeed();
-
+function go(u){location.href=u;}
 </script>
 
 </body>

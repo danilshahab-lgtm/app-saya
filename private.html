@@ -1,0 +1,28 @@
+<div id="users"></div>
+<div id="chat"></div>
+
+<input id="msg">
+<button onclick="send()">Send</button>
+<button onclick="call()">📹 Call</button>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+const socket=io();
+let user=localStorage.getItem("username");
+let target="";
+
+socket.emit("online",user);
+
+function call(){
+  socket.emit("call_user",{from:user,to:target});
+  location.href="/call";
+}
+
+function send(){
+  socket.emit("private_chat",{from:user,to:target,message:msg.value});
+}
+
+socket.on("private_chat",d=>{
+  chat.innerHTML+=`<p>${d.from}: ${d.message}</p>`;
+});
+</script>

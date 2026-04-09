@@ -8,7 +8,6 @@ const path = require("path");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const cookieParser = require("cookie-parser");
-const midtransClient = require("midtrans-client");
 
 // ================= INIT =================
 const app = express();
@@ -25,12 +24,6 @@ app.use("/uploads", express.static("uploads"));
 // ================= DATABASE =================
 mongoose.connect(process.env.MONGO_URL);
 
-// ================= MIDTRANS =================
-let snap = new midtransClient.Snap({
-  isProduction: false,
-  serverKey: process.env.MIDTRANS_SERVER_KEY
-});
-
 // ================= MODEL =================
 const User = mongoose.model("User", {
   username: String,
@@ -44,14 +37,21 @@ const Video = mongoose.model("Video", {
   comments: [String]
 });
 
+const Chat = mongoose.model("Chat", {
+  from: String,
+  to: String,
+  message: String,
+  time: { type: Date, default: Date.now },
+  seen: Boolean
+});
+
 // ================= AUTH =================
-function auth(req, res, next){
+function auth(req,res,next){
   const token = req.cookies.token;
   if(!token) return res.redirect("/login.html");
 
   try{
-    const data = jwt.verify(token, "secret123");
-    req.user = data;
+    req.user = jwt.verify(token,"secret123");
     next();
   }catch{
     res.redirect("/login.html");
@@ -68,24 +68,18 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 
 // ================= ROUTES =================
-app.get("/login", (req,res)=>res.sendFile(__dirname+"/login.html"));
-app.get("/", auth, (req,res)=>res.sendFile(__dirname+"/index.html"));
-app.get("/chat", auth, (req,res)=>res.sendFile(__dirname+"/chat.html"));
-app.get("/live", auth, (req,res)=>res.sendFile(__dirname+"/live.html"));
-
-// ================= PROFILE =================
-app.get("/profile", auth, async (req,res)=>{
-  const user = await User.findOne({username:req.user.username});
-  res.json(user);
-});
+app.get("/", auth,(req,res)=>res.sendFile(__dirname+"/index.html"));
+app.get("/feed", auth,(req,res)=>res.sendFile(__dirname+"/feed.html"));
+app.get("/upload", auth,(req,res)=>res.sendFile(__dirname+"/upload.html"));
+app.get("/private", auth,(req,res)=>res.sendFile(__dirname+"/private.html"));
+app.get("/live", auth,(req,res)=>res.sendFile(__dirname+"/live.html"));
+app.get("/call", auth,(req,res)=>res.sendFile(__dirname+"/videocall.html"));
+app.get("/login",(req,res)=>res.sendFile(__dirname+"/login.html"));
 
 // ================= AUTH =================
 app.post("/register", async (req,res)=>{
-  const hashed = await bcrypt.hash(req.body.password,10);
-  await User.create({
-    username:req.body.username,
-    password:hashed
-  });
+  const hash = await bcrypt.hash(req.body.password,10);
+  await User.create({username:req.body.username,password:hash});
   res.json({success:true});
 });
 
@@ -97,38 +91,24 @@ app.post("/login", async (req,res)=>{
   if(!valid) return res.json({success:false});
 
   const token = jwt.sign({username:user.username},"secret123");
-  res.cookie("token", token);
+  res.cookie("token",token);
 
   res.json({success:true});
 });
 
-// ================= PAYMENT =================
-app.post("/payment", auth, async (req,res)=>{
-  let parameter = {
-    transaction_details: {
-      order_id: "ORDER-" + Date.now(),
-      gross_amount: 10000
-    }
-  };
-
-  const transaction = await snap.createTransaction(parameter);
-  res.json({ token: transaction.token });
+// ================= USERS =================
+app.get("/users", auth, async (req,res)=>{
+  res.json(await User.find({}, "username"));
 });
 
-// ================= TOPUP =================
-app.post("/topup-success", auth, async (req,res)=>{
-  await User.updateOne(
-    {username:req.user.username},
-    {$inc:{coins:100}}
-  );
-  res.send("OK");
+// ================= PROFILE =================
+app.get("/profile", auth, async (req,res)=>{
+  res.json(await User.findOne({username:req.user.username}));
 });
 
 // ================= VIDEO =================
 app.post("/upload", auth, upload.single("video"), async (req,res)=>{
-  await Video.create({
-    filename:req.file.filename
-  });
+  await Video.create({ filename:req.file.filename });
   res.send("OK");
 });
 
@@ -136,36 +116,65 @@ app.get("/videos", async (req,res)=>{
   res.json(await Video.find());
 });
 
+// ================= CHAT =================
+app.get("/chat/:user", auth, async (req,res)=>{
+  const data = await Chat.find({
+    $or:[
+      {from:req.user.username,to:req.params.user},
+      {from:req.params.user,to:req.user.username}
+    ]
+  });
+  res.json(data);
+});
+
 // ================= SOCKET =================
-let users = {};
+let onlineUsers = {};
 let liveUsers = {};
 
 io.on("connection",(socket)=>{
 
-  socket.on("login",(username)=>{
-    users[username]=socket.id;
+  socket.on("online",(user)=>{
+    onlineUsers[user]=socket.id;
+    io.emit("online_users",Object.keys(onlineUsers));
+  });
+
+  // PRIVATE CHAT
+  socket.on("private_chat", async (d)=>{
+    await Chat.create({...d,seen:false});
+
+    let to = onlineUsers[d.to];
+    if(to) io.to(to).emit("private_chat",d);
+
+    socket.emit("private_chat",d);
   });
 
   // GROUP CHAT
-  socket.on("group_chat",(data)=>{
-    io.emit("group_chat",data);
+  socket.on("group_chat",(d)=>{
+    io.emit("group_chat",d);
   });
 
-  // LIVE START
-  socket.on("start_live",(username)=>{
-    liveUsers[username]=socket.id;
+  // LIVE
+  socket.on("start_live",(u)=>{
+    liveUsers[u]=socket.id;
     io.emit("live_list",Object.keys(liveUsers));
   });
 
-  // LIVE CHAT
-  socket.on("live_chat",(data)=>{
-    io.emit("live_chat",data);
+  socket.on("live_chat",(d)=>{
+    io.emit("live_chat",d);
+  });
+
+  // VIDEO CALL
+  socket.on("call_user",(d)=>{
+    let to = onlineUsers[d.to];
+    if(to) io.to(to).emit("incoming_call",d);
+  });
+
+  socket.on("answer_call",(d)=>{
+    let to = onlineUsers[d.to];
+    if(to) io.to(to).emit("call_answered",d);
   });
 
 });
 
 // ================= START =================
-const PORT = process.env.PORT || 3000;
-server.listen(PORT,()=>{
-  console.log("🚀 SERVER RUNNING ON " + PORT);
-});
+server.listen(process.env.PORT||3000);

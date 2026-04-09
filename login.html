@@ -1,26 +1,10 @@
-<h2>Login</h2>
-
-<input id="username" placeholder="Username"><br>
-<input id="password" type="password" placeholder="Password"><br>
-
+<input id="username">
+<input id="password">
 <button onclick="login()">Login</button>
-<button onclick="register()">Register</button>
 
 <script>
-async function register(){
-  await fetch("/register",{
-    method:"POST",
-    headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({
-      username:username.value,
-      password:password.value
-    })
-  });
-  alert("Register OK");
-}
-
 async function login(){
-  let res = await fetch("/login",{
+  let res=await fetch("/login",{
     method:"POST",
     headers:{"Content-Type":"application/json"},
     body:JSON.stringify({
@@ -29,13 +13,10 @@ async function login(){
     })
   });
 
-  let data = await res.json();
-
-  if(data.success){
-    localStorage.setItem("username", username.value);
+  let d=await res.json();
+  if(d.success){
+    localStorage.setItem("username",username.value);
     location.href="/";
-  }else{
-    alert(data.message);
   }
 }
 </script>

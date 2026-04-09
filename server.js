@@ -24,15 +24,14 @@ app.use("/uploads", express.static("uploads"));
 // ================= DATABASE =================
 mongoose.connect("mongodb://admin:danil1001@ac-f5rjgfe-shard-00-00.dogatub.mongodb.net:27017,ac-f5rjgfe-shard-00-01.dogatub.mongodb.net:27017,ac-f5rjgfe-shard-00-02.dogatub.mongodb.net:27017/app?ssl=true&replicaSet=atlas-cb666r-shard-0&authSource=admin&retryWrites=true&w=majority");
 
-console.log("Database connected");
-
-// ================= MODELS =================
+// ================= MODEL =================
 const User = mongoose.model("User", {
   username: String,
   password: String,
   avatar: String,
   followers: [String],
-  following: [String]
+  following: [String],
+  coins: { type: Number, default: 100 }
 });
 
 const Video = mongoose.model("Video", {
@@ -44,10 +43,7 @@ const Video = mongoose.model("Video", {
 // ================= AUTH =================
 function auth(req, res, next){
   const token = req.cookies.token;
-
-  if(!token){
-    return res.redirect("/login.html");
-  }
+  if(!token) return res.redirect("/login.html");
 
   try{
     const data = jwt.verify(token, "secret123");
@@ -58,7 +54,7 @@ function auth(req, res, next){
   }
 }
 
-// ================= MULTER =================
+// ================= UPLOAD =================
 const storage = multer.diskStorage({
   destination: "uploads/",
   filename: (req, file, cb) => {
@@ -68,162 +64,108 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 
 // ================= ROUTES =================
-
-// LOGIN PAGE
-app.get("/login", (req, res) => {
-  res.sendFile(__dirname + "/login.html");
-});
-
-// HOME
-app.get("/", auth, (req, res) => {
-  res.sendFile(__dirname + "/index.html");
-});
-
-// FEED
-app.get("/feed", auth, (req, res) => {
-  res.sendFile(__dirname + "/feed.html");
-});
-
-// UPLOAD PAGE
-app.get("/upload", auth, (req, res) => {
-  res.sendFile(__dirname + "/upload.html");
-});
-
-// PROFILE PAGE
-app.get("/profile-page", auth, (req, res) => {
-  res.sendFile(__dirname + "/profile.html");
-});
+app.get("/login", (req,res)=>res.sendFile(__dirname+"/login.html"));
+app.get("/", auth, (req,res)=>res.sendFile(__dirname+"/index.html"));
+app.get("/feed", auth, (req,res)=>res.sendFile(__dirname+"/feed.html"));
+app.get("/upload", auth, (req,res)=>res.sendFile(__dirname+"/upload.html"));
+app.get("/profile-page", auth, (req,res)=>res.sendFile(__dirname+"/profile.html"));
+app.get("/live", auth, (req,res)=>res.sendFile(__dirname+"/live.html"));
 
 // ================= AUTH =================
-app.post("/register", async (req, res) => {
-  const { username, password } = req.body;
-
-  const hashed = await bcrypt.hash(password, 10);
-
-  await User.create({
-    username,
-    password: hashed,
-    avatar: "",
-    followers: [],
-    following: []
-  });
-
-  res.json({ success: true });
+app.post("/register", async (req,res)=>{
+  const hashed = await bcrypt.hash(req.body.password,10);
+  await User.create({ username:req.body.username, password:hashed });
+  res.json({success:true});
 });
 
-app.post("/login", async (req, res) => {
-  const { username, password } = req.body;
+app.post("/login", async (req,res)=>{
+  const user = await User.findOne({username:req.body.username});
+  if(!user) return res.json({success:false});
 
-  const user = await User.findOne({ username });
-  if (!user) return res.json({ success:false, message:"User tidak ada" });
+  const valid = await bcrypt.compare(req.body.password,user.password);
+  if(!valid) return res.json({success:false});
 
-  const valid = await bcrypt.compare(password, user.password);
-  if (!valid) return res.json({ success:false, message:"Password salah" });
-
-  const token = jwt.sign({ username }, "secret123");
-
+  const token = jwt.sign({username:user.username},"secret123");
   res.cookie("token", token);
-
-  res.json({ success:true });
+  res.json({success:true});
 });
 
 // ================= PROFILE =================
-app.get("/profile", auth, async (req, res) => {
-  const user = await User.findOne({ username: req.user.username });
+app.get("/profile", auth, async (req,res)=>{
+  const user = await User.findOne({username:req.user.username});
   res.json(user);
 });
 
-app.post("/upload-avatar", auth, upload.single("avatar"), async (req, res) => {
+// ================= MONETISASI =================
+app.post("/topup", auth, async (req,res)=>{
   await User.updateOne(
-    { username: req.user.username },
-    { avatar: req.file.filename }
+    {username:req.user.username},
+    {$inc:{coins:100}}
   );
-  res.send("OK");
+  res.send("Topup OK");
 });
 
-// ================= FOLLOW =================
-app.post("/follow", auth, async (req, res) => {
-  const target = req.body.username;
-
-  if(!target) return res.send("No target");
+app.post("/gift", auth, async (req,res)=>{
+  const {to,amount} = req.body;
 
   await User.updateOne(
-    { username: target },
-    { $addToSet: { followers: req.user.username } }
+    {username:req.user.username},
+    {$inc:{coins:-amount}}
   );
 
   await User.updateOne(
-    { username: req.user.username },
-    { $addToSet: { following: target } }
+    {username:to},
+    {$inc:{coins:amount}}
   );
 
-  res.send("Followed");
+  res.send("Gift sent");
 });
 
 // ================= VIDEO =================
-app.post("/upload", auth, upload.single("video"), async (req, res) => {
+app.post("/upload", auth, upload.single("video"), async (req,res)=>{
   await Video.create({
-    filename: req.file.filename,
-    likes: 0,
-    comments: []
+    filename:req.file.filename,
+    likes:0,
+    comments:[]
   });
-
-  res.send("Uploaded");
+  res.send("OK");
 });
 
-app.get("/videos", async (req, res) => {
-  const videos = await Video.find();
-  res.json(videos);
+app.get("/videos", async (req,res)=>{
+  res.json(await Video.find());
 });
 
 // ================= SOCKET =================
+let liveUsers = {};
 let users = {};
-let videoData = {};
 
-io.on("connection", (socket) => {
+io.on("connection",(socket)=>{
 
-  console.log("User connect");
-
-  socket.on("login", (username) => {
-    users[username] = socket.id;
+  socket.on("login",(username)=>{
+    users[username]=socket.id;
   });
 
-  socket.on("private_chat", (data) => {
-    let target = users[data.to];
-    if (target) io.to(target).emit("private_chat", data);
+  // LIVE
+  socket.on("start_live",(username)=>{
+    liveUsers[username]=socket.id;
+    io.emit("live_list",Object.keys(liveUsers));
   });
 
-  socket.on("like", (video) => {
-    if (!videoData[video]) {
-      videoData[video] = { likes: 0, comments: [] };
-    }
-
-    videoData[video].likes++;
-
-    io.emit("update", {
-      video,
-      data: videoData[video]
-    });
+  socket.on("join_live",(username)=>{
+    let host = liveUsers[username];
+    if(host) socket.join(host);
   });
 
-  socket.on("comment", (data) => {
-    if (!videoData[data.video]) {
-      videoData[data.video] = { likes: 0, comments: [] };
-    }
+  socket.on("live_chat",(data)=>{
+    io.emit("live_chat",data);
+  });
 
-    videoData[data.video].comments.push(data.text);
-
-    io.emit("update", {
-      video: data.video,
-      data: videoData[data.video]
-    });
+  socket.on("send_gift",(data)=>{
+    io.emit("gift_notif",data);
   });
 
 });
 
 // ================= PORT =================
 const PORT = process.env.PORT || 3000;
-
-server.listen(PORT, () => {
-  console.log("Server jalan di port " + PORT);
-});
+server.listen(PORT,()=>console.log("RUN "+PORT));

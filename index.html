@@ -1,67 +1,99 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>App Saya</title>
+  <title>App</title>
 
   <style>
-    body {
-      margin: 0;
-      font-family: Arial;
-      background: black;
-      color: white;
+    body{
+      margin:0;
+      background:black;
+      color:white;
+      font-family:Arial;
+      text-align:center;
     }
 
-    .container {
-      padding-bottom: 70px;
+    .nav{
+      position:fixed;
+      bottom:0;
+      width:100%;
+      height:60px;
+      background:#111;
+      display:flex;
+      justify-content:space-around;
+      align-items:center;
     }
 
-    /* NAVBAR */
-    .nav {
-      position: fixed;
-      bottom: 0;
-      width: 100%;
-      height: 60px;
-      background: #111;
-      display: flex;
-      justify-content: space-around;
-      align-items: center;
-      border-top: 1px solid #333;
-    }
-
-    .nav button {
-      background: none;
-      border: none;
-      color: white;
-      font-size: 16px;
-    }
-
-    .nav button:hover {
-      color: red;
-    }
-
-    h2 {
-      padding: 10px;
+    button{
+      background:none;
+      border:none;
+      color:white;
+      font-size:16px;
     }
   </style>
 </head>
 
 <body>
 
-<div class="container">
-  <h2>🏠 Home</h2>
-</div>
+<h2>🔥 HOME</h2>
+
+<p id="coin">Loading coin...</p>
+
+<button onclick="topup()">💰 Topup</button>
+
+<hr>
+
+<h3>Kirim Gift</h3>
+<input id="to" placeholder="username">
+<input id="amount" placeholder="coin">
+<button onclick="gift()">Kirim</button>
+
+<hr>
 
 <!-- NAV -->
 <div class="nav">
-  <button onclick="go('/feed')">🎥 Feed</button>
-  <button onclick="go('/upload')">➕ Upload</button>
-  <button onclick="go('/profile-page')">👤 Profile</button>
+  <button onclick="go('/feed')">🎥</button>
+  <button onclick="go('/upload')">➕</button>
+  <button onclick="go('/profile-page')">👤</button>
+  <button onclick="go('/live')">🔴</button>
 </div>
 
 <script>
-function go(url){
-  window.location.href = url;
+
+// ================= LOAD COIN =================
+async function load(){
+  let res = await fetch("/profile");
+  let user = await res.json();
+  document.getElementById("coin").innerText = "Coin: " + user.coins;
 }
+load();
+
+// ================= TOPUP =================
+async function topup(){
+  await fetch("/topup",{method:"POST"});
+  alert("Topup berhasil");
+  load();
+}
+
+// ================= GIFT =================
+async function gift(){
+  await fetch("/gift",{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({
+      to:document.getElementById("to").value,
+      amount:Number(document.getElementById("amount").value)
+    })
+  });
+
+  alert("Gift terkirim");
+  load();
+}
+
+// ================= NAV =================
+function go(url){
+  location.href = url;
+}
+
 </script>
 
 </body>

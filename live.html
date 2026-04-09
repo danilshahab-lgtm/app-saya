@@ -2,23 +2,12 @@
 <html>
 <body style="background:black;color:white;text-align:center">
 
-<h2>🔴 LIVE STREAM</h2>
-
-<button onclick="start()">Start Live</button>
-<button onclick="join()">Join Live</button>
-
-<div id="liveList"></div>
-
-<hr>
+<h2>🔴 LIVE</h2>
 
 <div id="chat"></div>
 
 <input id="msg">
 <button onclick="send()">Kirim</button>
-
-<br><br>
-
-<button onclick="gift()">🎁 Gift 10 Coin</button>
 
 <script src="/socket.io/socket.io.js"></script>
 
@@ -26,48 +15,17 @@
 const socket = io();
 let username = localStorage.getItem("username");
 
-// START LIVE
-function start(){
-  socket.emit("start_live", username);
-}
+socket.emit("start_live", username);
 
-// JOIN LIVE
-function join(){
-  let target = prompt("Masukkan username host");
-  socket.emit("join_live", target);
-}
-
-// CHAT
 function send(){
-  let msg = document.getElementById("msg").value;
-
-  socket.emit("live_chat", {
-    user: username,
-    message: msg
+  socket.emit("live_chat",{
+    user:username,
+    message:msg.value
   });
 }
 
-socket.on("live_chat", (data) => {
-  document.getElementById("chat").innerHTML += 
-    "<p>"+data.user+": "+data.message+"</p>";
-});
-
-// GIFT
-function gift(){
-  socket.emit("send_gift", {
-    from: username,
-    amount: 10
-  });
-}
-
-socket.on("gift_notif", (data) => {
-  alert(data.from + " kirim gift " + data.amount);
-});
-
-// LIST LIVE
-socket.on("live_list", (list) => {
-  document.getElementById("liveList").innerHTML = 
-    "Live: " + list.join(", ");
+socket.on("live_chat",(d)=>{
+  chat.innerHTML += "<p>"+d.user+": "+d.message+"</p>";
 });
 </script>
 

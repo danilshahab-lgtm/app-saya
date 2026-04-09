@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<body style="background:#111;color:white">
+
+<div id="chat"></div>
+
+<input id="msg">
+<button onclick="send()">Kirim</button>
+
+<script src="/socket.io/socket.io.js"></script>
+
+<script>
+const socket = io();
+let username = localStorage.getItem("username");
+
+function send(){
+  socket.emit("group_chat",{
+    user:username,
+    message:msg.value
+  });
+}
+
+socket.on("group_chat",(d)=>{
+  chat.innerHTML += "<p>"+d.user+": "+d.message+"</p>";
+});
+</script>
+
+</body>
+</html>

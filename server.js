@@ -8,6 +8,7 @@ const path = require("path");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const cookieParser = require("cookie-parser");
+const midtransClient = require("midtrans-client");
 
 // ================= INIT =================
 const app = express();
@@ -21,16 +22,19 @@ app.use(cookieParser());
 app.use(express.static(__dirname));
 app.use("/uploads", express.static("uploads"));
 
-// ================= DATABASE =================
+// ================= DATABASE (ATLAS) =================
 mongoose.connect("mongodb://admin:danil1001@ac-f5rjgfe-shard-00-00.dogatub.mongodb.net:27017,ac-f5rjgfe-shard-00-01.dogatub.mongodb.net:27017,ac-f5rjgfe-shard-00-02.dogatub.mongodb.net:27017/app?ssl=true&replicaSet=atlas-cb666r-shard-0&authSource=admin&retryWrites=true&w=majority");
+
+// ================= MIDTRANS =================
+let snap = new midtransClient.Snap({
+  isProduction: false,
+  serverKey: process.env.MIDTRANS_SERVER_KEY
+});
 
 // ================= MODEL =================
 const User = mongoose.model("User", {
   username: String,
   password: String,
-  avatar: String,
-  followers: [String],
-  following: [String],
   coins: { type: Number, default: 100 }
 });
 
@@ -54,7 +58,7 @@ function auth(req, res, next){
   }
 }
 
-// ================= UPLOAD =================
+// ================= MULTER =================
 const storage = multer.diskStorage({
   destination: "uploads/",
   filename: (req, file, cb) => {
@@ -66,9 +70,7 @@ const upload = multer({ storage });
 // ================= ROUTES =================
 app.get("/login", (req,res)=>res.sendFile(__dirname+"/login.html"));
 app.get("/", auth, (req,res)=>res.sendFile(__dirname+"/index.html"));
-app.get("/feed", auth, (req,res)=>res.sendFile(__dirname+"/feed.html"));
-app.get("/upload", auth, (req,res)=>res.sendFile(__dirname+"/upload.html"));
-app.get("/profile-page", auth, (req,res)=>res.sendFile(__dirname+"/profile.html"));
+app.get("/chat", auth, (req,res)=>res.sendFile(__dirname+"/chat.html"));
 app.get("/live", auth, (req,res)=>res.sendFile(__dirname+"/live.html"));
 
 // ================= AUTH =================
@@ -87,38 +89,31 @@ app.post("/login", async (req,res)=>{
 
   const token = jwt.sign({username:user.username},"secret123");
   res.cookie("token", token);
+
   res.json({success:true});
 });
 
-// ================= PROFILE =================
-app.get("/profile", auth, async (req,res)=>{
-  const user = await User.findOne({username:req.user.username});
-  res.json(user);
+// ================= MIDTRANS PAYMENT =================
+app.post("/payment", auth, async (req,res)=>{
+  let parameter = {
+    transaction_details: {
+      order_id: "ORDER-" + Date.now(),
+      gross_amount: 10000
+    }
+  };
+
+  const transaction = await snap.createTransaction(parameter);
+
+  res.json({ token: transaction.token });
 });
 
-// ================= MONETISASI =================
-app.post("/topup", auth, async (req,res)=>{
+// ================= TOPUP AFTER SUCCESS =================
+app.post("/topup-success", auth, async (req,res)=>{
   await User.updateOne(
     {username:req.user.username},
     {$inc:{coins:100}}
   );
   res.send("Topup OK");
-});
-
-app.post("/gift", auth, async (req,res)=>{
-  const {to,amount} = req.body;
-
-  await User.updateOne(
-    {username:req.user.username},
-    {$inc:{coins:-amount}}
-  );
-
-  await User.updateOne(
-    {username:to},
-    {$inc:{coins:amount}}
-  );
-
-  res.send("Gift sent");
 });
 
 // ================= VIDEO =================
@@ -136,13 +131,18 @@ app.get("/videos", async (req,res)=>{
 });
 
 // ================= SOCKET =================
-let liveUsers = {};
 let users = {};
+let liveUsers = {};
 
 io.on("connection",(socket)=>{
 
   socket.on("login",(username)=>{
     users[username]=socket.id;
+  });
+
+  // GROUP CHAT
+  socket.on("group_chat",(data)=>{
+    io.emit("group_chat",data);
   });
 
   // LIVE
@@ -151,17 +151,8 @@ io.on("connection",(socket)=>{
     io.emit("live_list",Object.keys(liveUsers));
   });
 
-  socket.on("join_live",(username)=>{
-    let host = liveUsers[username];
-    if(host) socket.join(host);
-  });
-
   socket.on("live_chat",(data)=>{
     io.emit("live_chat",data);
-  });
-
-  socket.on("send_gift",(data)=>{
-    io.emit("gift_notif",data);
   });
 
 });
